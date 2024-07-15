@@ -15,6 +15,7 @@
   overlays = import ./overlays; # nixpkgs overlays
 
   gtkwave4 = pkgs.callPackage ./pkgs/gtkwave4 {};
+  xfel = pkgs.callPackage ./pkgs/xfel {};
   # some-qt5-package = pkgs.libsForQt5.callPackage ./pkgs/some-qt5-package { };
   # ...
 }
