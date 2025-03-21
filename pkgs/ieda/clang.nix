@@ -1,6 +1,6 @@
 {
   lib,
-  clangStdenv,
+  libcxxStdenv,
   llvmPackages,
   stdenv,
   fetchgit,
@@ -15,7 +15,8 @@
   boost,
   eigen,
   yaml-cpp,
-  libunwind,
+  pkg-config,
+  fixDarwinDylibNames,
   glog,
   gtest,
   gflags,
@@ -39,25 +40,33 @@ let
     version = "2025-03-12";
     src = fetchgit {
       url = "https://github.com/Emin017/iEDA";
-      rev = "648df9b66af59890e867bd3a62abf941a5d3fb31";
-      sha256 = "sha256-g62wCTuNRzUaFC/hes/nUQ/1r73gbMGhn45Ey7frUsA=";
+      rev = "2c54945b7e98852535e3fa7df4a61750238ff15f";
+      sha256 = "sha256-weYlGDxnuWYlxngB52n471LalacV6vz9jP+LVRyhOms=";
     };
+
+    patches = [
+      ./diff.patch
+    ];
 
     dontBuild = true;
     dontFixup = true;
+
     installPhase = ''
       cp -r . $out
+      sed -i '2a\#include <sstream>' $out/src/third_party/LSAssigner4iEDA/ls_assigner/buildmodel/model.cpp
     '';
 
   };
 
   rustpkgs = callPackages ./rustpkgs.nix { inherit rootSrc; };
 in
-clangStdenv.mkDerivation {
+libcxxStdenv.mkDerivation {
   pname = "iEDAClang";
   version = "0-unstable-2025-03-12";
 
   src = rootSrc;
+
+  NIX_CFLAGS_COMPILE = "-D_LIBCPP_DISABLE_AVAILABILITY -isystem ${llvmPackages.libcxx.dev}/include/c++/v1";
 
   nativeBuildInputs = [
     cmake
@@ -66,6 +75,8 @@ clangStdenv.mkDerivation {
     bison
     python3
     tcl
+    pkg-config
+    fixDarwinDylibNames
   ];
 
   cmakeFlags = [
@@ -80,6 +91,7 @@ clangStdenv.mkDerivation {
 
   buildInputs = [
     llvmPackages.openmp
+    llvmPackages.libunwind
     rustpkgs.iir-rust
     rustpkgs.sdf_parse
     rustpkgs.spef-parser
@@ -93,7 +105,6 @@ clangStdenv.mkDerivation {
     onnxruntime
     eigen
     yaml-cpp
-    libunwind
     metis
     gmp
     tcl
@@ -116,6 +127,6 @@ clangStdenv.mkDerivation {
       Emin017
     ];
     mainProgram = "iEDA";
-    platforms = lib.platforms.linux;
+    platforms = lib.platforms.all;
   };
 }

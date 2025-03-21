@@ -1,0 +1,176 @@
+diff --git a/src/database/manager/parser/liberty/LibClassifyCell.cc b/src/database/manager/parser/liberty/LibClassifyCell.cc
+index 7c0aea1f..3bbe7de0 100644
+--- a/src/database/manager/parser/liberty/LibClassifyCell.cc
++++ b/src/database/manager/parser/liberty/LibClassifyCell.cc
+@@ -278,7 +278,7 @@ bool LibClassifyCell::compareFunction(LibCell* the_cell1, LibCell* the_cell2)
+  * @param the_lib
+  * @param hash_to_cells
+  */
+-void LibClassifyCell::classifyOneLibCell(LibLibrary* the_lib, std::unordered_map<u_int64_t, Vector<LibCell*>>& hash_to_cells)
++void LibClassifyCell::classifyOneLibCell(LibLibrary* the_lib, std::unordered_map<std::size_t, Vector<LibCell*>>& hash_to_cells)
+ {
+   LibCell* cell;
+   FOREACH_LIB_CELL(the_lib, cell)
+diff --git a/src/operation/iIR/source/ir-solver/CMakeLists.txt b/src/operation/iIR/source/ir-solver/CMakeLists.txt
+index 72d206b7..d71eac9b 100644
+--- a/src/operation/iIR/source/ir-solver/CMakeLists.txt
++++ b/src/operation/iIR/source/ir-solver/CMakeLists.txt
+@@ -17,4 +17,4 @@ else()
+     target_compile_options(ir_solver PRIVATE -fPIC)
+ endif()
+ 
+-
++target_link_libraries(ir_solver PRIVATE glog)
+diff --git a/src/operation/iPW/source/module/ops/annotate_toggle_sp/AnnotateData.hh b/src/operation/iPW/source/module/ops/annotate_toggle_sp/AnnotateData.hh
+index aeee2665..05622a6f 100644
+--- a/src/operation/iPW/source/module/ops/annotate_toggle_sp/AnnotateData.hh
++++ b/src/operation/iPW/source/module/ops/annotate_toggle_sp/AnnotateData.hh
+@@ -45,17 +45,20 @@ namespace ipower {
+ class AnnotateTime {
+  public:
+   AnnotateTime(int64_t t0, int64_t t1, int64_t tx, int64_t tz)
+-      : _T0(t0), _T1(t1), _TX(tx), _TZ(tz) {}
++      : _T0(static_cast<long>(t0)),
++        _T1(static_cast<long>(t1)),
++        _TX(static_cast<long>(tx)),
++        _TZ(static_cast<long>(tz)) {}
+   AnnotateTime() = default;
+   ~AnnotateTime() = default;
+   auto& get_T0() { return _T0; }
+-  void incrT0(int64_t duration) { _T0 += duration; }
++  void incrT0(int64_t duration) { _T0 += static_cast<long>(duration); }
+   auto& get_T1() { return _T1; }
+-  void incrT1(int64_t duration) { _T1 += duration; }
++  void incrT1(int64_t duration) { _T1 += static_cast<long>(duration); }
+   auto& get_TX() { return _TX; }
+-  void incrTX(int64_t duration) { _TX += duration; }
++  void incrTX(int64_t duration) { _TX += static_cast<long>(duration); }
+   auto& get_TZ() { return _TZ; }
+-  void incrTZ(int64_t duration) { _TZ += duration; }
++  void incrTZ(int64_t duration) { _TZ += static_cast<long>(duration); }
+ 
+   void printAnnotateTime(std::ostream& out);
+   double get_SP() {
+@@ -81,7 +84,7 @@ class AnnotateToggle {
+ 
+   void printAnnotateToggle(std::ostream& out);
+   int64_t get_toggle() { return _TC.get_ui(); }
+-  void set_TC(int tc) { _TC = tc; }
++  void set_TC(int tc) { _TC = static_cast<long>(tc); }
+ 
+  private:
+   mpz_class _TC{0};  //!< The total number of transition.
+@@ -241,7 +244,7 @@ class AnnotateInstance {
+ class AnnotateTimeScale {
+  public:
+   void set_annotate_time_scale(int64_t scale, int8_t unit_num) {
+-    _scale = scale;
++    _scale = static_cast<long>(scale);
+     _unit = (ScaleUnit)unit_num;
+   };
+ 
+@@ -271,12 +274,12 @@ class AnnotateDB {
+   auto* get_top_instance() { return _top_instance.get(); }
+ 
+   void set_simulation_start_time(int64_t simulation_start_time) {
+-    _simulation_start_time = simulation_start_time;
++    _simulation_start_time = static_cast<long>(simulation_start_time);
+   }
+   auto get_simulation_sart_time() { return _simulation_start_time.get_ui(); }
+ 
+   void set_simulation_duration(int64_t simulation_duration) {
+-    _simulation_duration = simulation_duration;
++    _simulation_duration = static_cast<long>(simulation_duration);
+   }
+   auto get_simulation_duration() { return _simulation_duration.get_ui(); }
+ 
+diff --git a/src/third_party/ThreadPool/ThreadPool.h b/src/third_party/ThreadPool/ThreadPool.h
+index 41832030..876455a5 100644
+--- a/src/third_party/ThreadPool/ThreadPool.h
++++ b/src/third_party/ThreadPool/ThreadPool.h
+@@ -16,7 +16,7 @@ public:
+     ThreadPool(size_t);
+     template<class F, class... Args>
+     auto enqueue(F&& f, Args&&... args) 
+-        -> std::future<typename std::result_of<F(Args...)>::type>;
++        -> std::future<typename std::invoke_result_t<F, Args...>>;
+     ~ThreadPool();
+ private:
+     // need to keep track of threads so we can join them
+@@ -61,9 +61,9 @@ inline ThreadPool::ThreadPool(size_t threads)
+ // add new work item to the pool
+ template<class F, class... Args>
+ auto ThreadPool::enqueue(F&& f, Args&&... args) 
+-    -> std::future<typename std::result_of<F(Args...)>::type>
++    -> std::future<typename std::invoke_result_t<F, Args...>>
+ {
+-    using return_type = typename std::result_of<F(Args...)>::type;
++    using return_type = typename std::invoke_result_t<F, Args...>;
+ 
+     auto task = std::make_shared< std::packaged_task<return_type()> >(
+             std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+diff --git a/src/third_party/lemon/CMakeLists.txt b/src/third_party/lemon/CMakeLists.txt
+index 7a2b334d..502bb41e 100644
+--- a/src/third_party/lemon/CMakeLists.txt
++++ b/src/third_party/lemon/CMakeLists.txt
+@@ -6,6 +6,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/lemon.pc.in
+                ${CMAKE_CURRENT_BINARY_DIR}/lemon.pc @ONLY)
+ 
++set(CMAKE_CXX_STANDARD 20)
++
+ set(LEMON_SOURCES
+     arg_parser.cc
+     base.cc
+diff --git a/src/third_party/lemon/math.h b/src/third_party/lemon/math.h
+index 5da50b07..e0788e82 100644
+--- a/src/third_party/lemon/math.h
++++ b/src/third_party/lemon/math.h
+@@ -27,7 +27,7 @@
+ ///
+ ///This file includes the standard math library (cmath).
+ 
+-#include<cmath>
++#include <cmath>
+ 
+ namespace lemon {
+ 
+@@ -67,7 +67,14 @@ namespace lemon {
+ 
+   ///Round a value to its closest integer
+   inline double round(double r) {
+-    return (r > 0.0) ? std::floor(r + 0.5) : std::ceil(r - 0.5);
++    double intPart = static_cast<double>(static_cast<long>(r));
++    double fraction = r - intPart;
++
++    if (r >= 0.0) {
++      return (fraction >= 0.5) ? intPart + 1.0 : intPart;
++    } else {
++      return (fraction <= -0.5) ? intPart - 1.0 : intPart;
++    }
+   }
+ 
+   /// @}
+diff --git a/src/utility/tcl/CMakeLists.txt b/src/utility/tcl/CMakeLists.txt
+index 77848f72..ad886cb0 100644
+--- a/src/utility/tcl/CMakeLists.txt
++++ b/src/utility/tcl/CMakeLists.txt
+@@ -19,9 +19,16 @@ else()
+   add_library(tcl SHARED ${SRC})
+ endif()
+ 
+-target_link_libraries(tcl PUBLIC ${LINK_tcl} absl::inlined_vector)
++target_link_libraries(tcl
++  PUBLIC
++  ${LINK_tcl}
++  absl::inlined_vector
++  str
++  glog
++  gflags
++)
+ 
+ target_include_directories(tcl
+     PUBLIC
+-        ${CMAKE_CURRENT_SOURCE_DIR}
++    ${CMAKE_CURRENT_SOURCE_DIR}
+ )
