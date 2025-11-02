@@ -25,6 +25,16 @@ in
   ieda = ieda-unstable;
   rtl2gds = pkgs.python3Packages.callPackage ./pkgs/rtl2gds { inherit ieda-unstable; };
   yosys-slang = pkgs.callPackage ./pkgs/yosys-slang { };
+  circt_1_66_0 = pkgs.circt.overrideAttrs (oldAttrs: rec {
+    version = "1.66.0";
+    src = pkgs.fetchFromGitHub {
+        owner = "llvm";
+        repo = "circt";
+        rev = "firtool-${version}";
+        hash = "sha256-pIuBIl1iZRuqjy7CPfsTnR82Fq7iH22TtpbSk4oBshQ=";
+        fetchSubmodules = true;
+    };
+  });
   # some-qt5-package = pkgs.libsForQt5.callPackage ./pkgs/some-qt5-package { };
   # ...
 }
